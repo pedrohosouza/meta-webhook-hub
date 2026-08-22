@@ -1,19 +1,5 @@
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/meta_webhook_hub?schema=public
-      - REDIS_URL=redis://redis:6379
-      - NUXT_SESSION_PASSWORD=super-secret-password-change-me-later-min-32-chars
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-  db:
+  database:
     image: postgres:18-alpine
     environment:
       - POSTGRES_USER=postgres
