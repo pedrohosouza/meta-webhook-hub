@@ -23,8 +23,6 @@ Você está desenvolvendo o **Meta Webhook Hub**, uma aplicação *self-hosted* 
    - A rota de recebimento (Ingress) DEVE validar obrigatoriamente a assinatura `x-hub-signature-256` enviada pela Meta utilizando o `app_secret` cadastrado. Utilize o módulo `crypto` nativo do Node.js.
 4. **Tratamento Assíncrono:**
    - A rota de Ingress deve apenas validar a requisição, salvar o job no Redis (BullMQ) e retornar HTTP 200 IMEDIATAMENTE (evitando timeouts da Meta). O envio para os endpoints é feito pelo worker em background.
-5. **Setup Inicial (First-Run):**
-   - Garanta a implementação de um middleware no Nuxt que verifique se existe um usuário criado no banco. Se não existir, libere apenas a rota `/setup` e bloqueie o resto. Após o primeiro cadastro, bloqueie `/setup` e exija `/login`.
 
 ## 4. Banco de Dados e Migrations
 - Sempre modifique a estrutura através do `prisma/schema.prisma`.

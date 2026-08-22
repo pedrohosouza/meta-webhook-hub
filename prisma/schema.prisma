@@ -7,10 +7,45 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           Int    @id @default(autoincrement())
-  email        String @unique
-  passwordHash String
+model App {
+  id          String        @id @default(uuid())
+  name        String
+  verifyToken String        @unique
+  appSecret   String
+  endpoints   Endpoint[]
+  deliveries  DeliveryLog[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  @@map("users")
+  @@map("apps")
+}
+
+model Endpoint {
+  id         String        @id @default(uuid())
+  appId      String
+  app        App           @relation(fields: [appId], references: [id], onDelete: Cascade)
+  url        String
+  isActive   Boolean       @default(true)
+  deliveries DeliveryLog[]
+  createdAt  DateTime      @default(now())
+
+  @@index([appId])
+  @@map("endpoints")
+}
+
+model DeliveryLog {
+  id              String   @id @default(uuid())
+  appId           String
+  app              App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  endpointId       String
+  endpoint         Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  eventPayload     Json
+  statusCode       Int?
+  responseBody     String?
+  executionTimeMs  Int
+  createdAt        DateTime @default(now())
+
+  @@index([appId, createdAt])
+  @@index([endpointId])
+  @@map("delivery_logs")
 }
