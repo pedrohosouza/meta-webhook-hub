@@ -6,10 +6,12 @@ const saving = ref(false)
 const adding = ref(false)
 const deleteModalOpen = ref(false)
 const deleting = ref(false)
+const showAppSecret = ref(false)
 const testingEndpointId = ref<string | null>(null)
 const endpointUrl = ref('')
 const id = computed(() => route.params.id as string)
-const { data: app, refresh } = await useFetch(() => `/api/apps/${id.value}`)
+const { data: app, status, error, refresh } = await useFetch(() => `/api/apps/${id.value}`)
+const endpointToRemove = ref<NonNullable<typeof app.value>['endpoints'][number] | null>(null)
 const form = reactive({ name: '', appSecret: '', verifyToken: '' })
 const ingressUrl = computed(() => `${config.public.baseUrl}/api/ingress/${id.value}`)
 const activeEndpoints = computed(() => app.value?.endpoints.filter(endpoint => endpoint.isActive).length || 0)
@@ -45,9 +47,14 @@ async function toggleEndpoint(endpoint: NonNullable<typeof app.value>['endpoints
 }
 
 async function removeEndpoint(endpointId: string) {
-  await $fetch(`/api/endpoints/${endpointId}`, { method: 'DELETE' })
-  toast.add({ title: 'Destino removido' })
-  await refresh()
+  try {
+    await $fetch(`/api/endpoints/${endpointId}`, { method: 'DELETE' })
+    endpointToRemove.value = null
+    toast.add({ title: 'Destino removido' })
+    await refresh()
+  } catch (error: any) {
+    toast.add({ title: 'Falha ao remover destino', description: error.data?.statusMessage, color: 'error' })
+  }
 }
 
 async function testEndpoint(endpointId: string) {
@@ -89,11 +96,17 @@ async function copy(value: string) {
 </script>
 
 <template>
-  <section v-if="app" class="flex flex-col gap-8">
+  <section v-if="status === 'pending'" class="flex flex-col gap-5" aria-label="Carregando app">
+    <USkeleton class="h-24 rounded-xl" />
+    <USkeleton class="h-72 rounded-xl" />
+    <USkeleton class="h-64 rounded-xl" />
+  </section>
+  <UAlert v-else-if="error" title="Não foi possível carregar o app" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" />
+  <section v-else-if="app" class="flex flex-col gap-8">
     <header class="flex flex-col gap-5 border-b border-default pb-8 sm:flex-row sm:items-end sm:justify-between">
       <section>
         <UButton to="/" label="Apps" icon="i-lucide-arrow-left" color="neutral" variant="link" class="mb-3 px-0" />
-        <h1 class="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">{{ app.name }}</h1>
+        <h1 class="page-heading">{{ app.name }}</h1>
         <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-muted">
           <span>{{ app.id }}</span>
           <span class="text-primary">{{ activeEndpoints }} destinos ativos</span>
@@ -104,7 +117,7 @@ async function copy(value: string) {
 
     <section class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section class="flex flex-col gap-8">
-        <section class="overflow-hidden rounded-xl border border-default bg-default shadow-sm shadow-neutral-950/5">
+        <section class="panel-core">
           <header class="flex items-start gap-4 border-b border-default px-5 py-5 sm:px-6">
             <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><UIcon name="i-lucide-badge-check" class="size-5" /></span>
             <section>
@@ -115,7 +128,11 @@ async function copy(value: string) {
           <form class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6" @submit.prevent="save">
             <UFormField label="Nome do app"><UInput v-model="form.name" size="lg" class="w-full" /></UFormField>
             <UFormField label="Verify Token" description="Deve ser igual ao token informado na Meta."><UInput v-model="form.verifyToken" size="lg" class="w-full" /></UFormField>
-            <UFormField label="App Secret" description="Assina cada payload enviado pela Meta."><UInput v-model="form.appSecret" size="lg" type="password" icon="i-lucide-key-round" class="w-full" /></UFormField>
+            <UFormField label="App Secret" description="Assina cada payload enviado pela Meta.">
+              <UInput v-model="form.appSecret" size="lg" :type="showAppSecret ? 'text' : 'password'" icon="i-lucide-key-round" class="w-full" autocomplete="off">
+                <template #trailing><UButton :icon="showAppSecret ? 'i-lucide-eye-off' : 'i-lucide-eye'" color="neutral" variant="ghost" size="sm" :aria-label="showAppSecret ? 'Ocultar App Secret' : 'Mostrar App Secret'" @click="showAppSecret = !showAppSecret" /></template>
+              </UInput>
+            </UFormField>
             <UFormField label="URL de callback" description="Cole este endereço no painel da Meta.">
               <UInput :model-value="ingressUrl" size="lg" readonly class="w-full font-mono text-xs">
                 <template #trailing><UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" aria-label="Copiar URL" @click="copy(ingressUrl)" /></template>
@@ -125,7 +142,7 @@ async function copy(value: string) {
           </form>
         </section>
 
-        <section class="overflow-hidden rounded-xl border border-default bg-default shadow-sm shadow-neutral-950/5">
+        <section class="panel-core">
           <header class="border-b border-default px-5 py-5 sm:px-6">
             <h2 class="font-semibold tracking-tight">Destinos de entrega</h2>
             <p class="mt-1 text-sm text-muted">Eventos válidos são enviados em paralelo para todos os destinos ativos.</p>
@@ -146,7 +163,7 @@ async function copy(value: string) {
               <section class="flex items-center justify-end gap-3">
                 <USwitch :model-value="endpoint.isActive" :aria-label="`Alternar ${endpoint.url}`" @update:model-value="toggleEndpoint(endpoint)" />
                 <UButton icon="i-lucide-play" color="primary" variant="ghost" size="sm" :loading="testingEndpointId === endpoint.id" :disabled="testingEndpointId !== null && testingEndpointId !== endpoint.id" :aria-label="`Testar ${endpoint.url}`" @click="testEndpoint(endpoint.id)" />
-                <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="sm" :aria-label="`Remover ${endpoint.url}`" @click="removeEndpoint(endpoint.id)" />
+                <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="sm" :aria-label="`Remover ${endpoint.url}`" @click="endpointToRemove = endpoint" />
               </section>
             </li>
           </ul>
@@ -158,7 +175,7 @@ async function copy(value: string) {
         </section>
       </section>
 
-      <aside class="self-start rounded-xl border border-default bg-default p-5 xl:sticky xl:top-10">
+      <aside class="panel-core self-start p-5 xl:sticky xl:top-10">
         <h2 class="text-sm font-semibold tracking-tight">Checklist da Meta</h2>
         <ol class="mt-5 flex flex-col gap-5">
           <li class="flex gap-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs text-primary">1</span><p class="text-sm leading-relaxed text-muted">Copie a URL de callback para a configuração do webhook.</p></li>
@@ -181,9 +198,21 @@ async function copy(value: string) {
             color="error"
             variant="subtle"
           />
-          <footer class="flex justify-end gap-2 border-t border-default pt-5">
+          <footer class="flex flex-col-reverse gap-2 border-t border-default pt-5 sm:flex-row sm:justify-end">
             <UButton label="Cancelar" color="neutral" variant="ghost" :disabled="deleting" @click="deleteModalOpen = false" />
             <UButton label="Excluir permanentemente" icon="i-lucide-trash-2" color="error" :loading="deleting" @click="removeApp" />
+          </footer>
+        </section>
+      </template>
+    </UModal>
+
+    <UModal :open="Boolean(endpointToRemove)" title="Remover destino" description="A entrega de novos eventos para esta URL será interrompida." @update:open="!$event && (endpointToRemove = null)">
+      <template #body>
+        <section class="flex flex-col gap-5">
+          <UAlert v-if="endpointToRemove" title="Confirme a remoção" :description="endpointToRemove.url" icon="i-lucide-triangle-alert" color="error" variant="subtle" />
+          <footer class="flex flex-col-reverse gap-2 border-t border-default pt-5 sm:flex-row sm:justify-end">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="endpointToRemove = null" />
+            <UButton v-if="endpointToRemove" label="Remover destino" icon="i-lucide-trash-2" color="error" @click="removeEndpoint(endpointToRemove.id)" />
           </footer>
         </section>
       </template>

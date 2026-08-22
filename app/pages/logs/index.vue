@@ -30,8 +30,8 @@ function statusLabel(code: number | null) {
   <section class="flex flex-col gap-8">
     <header class="flex flex-col gap-5 border-b border-default pb-8 sm:flex-row sm:items-end sm:justify-between">
       <section>
-        <p class="mb-2 font-mono text-[11px] font-medium text-primary">DELIVERY OBSERVABILITY</p>
-        <h1 class="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">Entregas</h1>
+        <p class="eyebrow mb-3">Observabilidade</p>
+        <h1 class="page-heading">Entregas</h1>
         <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">Inspecione cada tentativa de fanout, o tempo de execução e a resposta do destino.</p>
       </section>
       <UFormField label="App">
@@ -39,7 +39,7 @@ function statusLabel(code: number | null) {
       </UFormField>
     </header>
 
-    <section class="flex items-center justify-between rounded-xl border border-default bg-default px-5 py-4">
+    <section class="panel-core flex items-center justify-between px-5 py-4">
       <section class="flex items-center gap-3">
         <span class="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><UIcon name="i-lucide-activity" class="size-4" /></span>
         <span><strong class="block font-mono text-lg leading-none">{{ logs?.total || 0 }}</strong><small class="text-xs text-muted">registros encontrados</small></span>
@@ -47,12 +47,13 @@ function statusLabel(code: number | null) {
       <span class="hidden font-mono text-[10px] text-muted sm:block">PAGE {{ logs?.page || page }} / {{ logs?.pages || 1 }}</span>
     </section>
 
-    <section class="overflow-hidden rounded-xl border border-default bg-default shadow-sm shadow-neutral-950/5">
+    <section class="panel-shell">
+      <section class="panel-core">
       <section v-if="status === 'pending'" class="p-5 sm:p-6">
         <section v-for="item in 6" :key="item" class="flex items-center gap-5 border-b border-default py-4 last:border-b-0"><USkeleton class="h-4 w-32" /><USkeleton class="h-4 flex-1" /><USkeleton class="h-6 w-24" /></section>
       </section>
       <UAlert v-else-if="error" title="Não foi possível carregar as entregas" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" class="m-5" />
-      <section v-else-if="logs?.items.length" class="overflow-x-auto">
+      <section v-else-if="logs?.items.length" class="overflow-x-auto" tabindex="0" aria-label="Tabela de entregas">
         <table class="w-full min-w-[820px] text-left text-sm">
           <thead class="border-b border-default bg-elevated/50 text-[11px] font-semibold text-muted">
             <tr><th class="px-5 py-3.5 sm:px-6">App</th><th class="px-5 py-3.5">Destino</th><th class="px-5 py-3.5">Resultado</th><th class="px-5 py-3.5 text-right">Tempo</th><th class="px-5 py-3.5 text-right sm:px-6">Recebido em</th></tr>
@@ -75,6 +76,7 @@ function statusLabel(code: number | null) {
           <h2 class="font-semibold tracking-tight">Nenhuma entrega registrada</h2>
           <p class="mt-2 text-sm leading-relaxed text-muted">Os resultados aparecerão aqui depois que um app receber seu primeiro evento.</p>
         </section>
+      </section>
       </section>
     </section>
     <footer v-if="logs && logs.pages > 1" class="flex justify-center">
