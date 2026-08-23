@@ -20,7 +20,7 @@ async function logout() {
       <header class="flex h-20 items-center px-6">
         <NuxtLink to="/" class="flex items-center gap-3">
           <span class="flex size-9 items-center justify-center rounded-lg bg-inverted text-inverted shadow-sm">
-            <UIcon name="i-lucide-waypoints" class="size-5" />
+            <AppLogoMark class="size-6" />
           </span>
           <span class="leading-tight">
             <strong class="block text-sm font-bold tracking-tight">Meta Webhook Hub</strong>
@@ -66,7 +66,7 @@ async function logout() {
     <section class="min-w-0">
       <header class="sticky top-0 z-20 flex min-h-16 items-center border-b border-default bg-default/90 px-4 backdrop-blur lg:hidden">
         <NuxtLink to="/" class="flex flex-1 items-center gap-2 font-bold tracking-tight">
-          <span class="flex size-8 items-center justify-center rounded-lg bg-primary text-inverted"><UIcon name="i-lucide-waypoints" class="size-4" /></span>
+          <span class="flex size-8 items-center justify-center rounded-lg bg-primary text-inverted"><AppLogoMark class="size-5" /></span>
           Meta Webhook
         </NuxtLink>
         <nav class="flex gap-1" aria-label="Principal">

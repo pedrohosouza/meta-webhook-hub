@@ -9,7 +9,7 @@ datasource db {
 
 model App {
   id          String        @id @default(uuid())
-  name        String
+  name        String        @unique
   verifyToken String        @unique
   appSecret   String
   endpoints   Endpoint[]

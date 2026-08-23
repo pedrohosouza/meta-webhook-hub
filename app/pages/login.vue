@@ -21,7 +21,7 @@ async function submit() {
     <section class="relative hidden overflow-hidden bg-inverted text-inverted lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
       <div class="surface-grid absolute inset-0 opacity-40" />
       <header class="relative flex items-center gap-3">
-        <span class="flex size-10 items-center justify-center rounded-xl bg-primary text-inverted ring-1 ring-white/20"><UIcon name="i-lucide-waypoints" class="size-5" /></span>
+        <span class="flex size-10 items-center justify-center rounded-xl bg-primary text-inverted ring-1 ring-white/20"><AppLogoMark class="size-6" /></span>
         <strong class="text-sm tracking-tight">Meta Webhook Hub</strong>
       </header>
       <section class="relative max-w-2xl">
@@ -38,7 +38,7 @@ async function submit() {
     <section class="flex items-center justify-center p-5 sm:p-10">
       <section class="w-full max-w-md">
         <header class="mb-10">
-          <span class="mb-8 flex size-11 items-center justify-center rounded-xl bg-primary text-inverted lg:hidden"><UIcon name="i-lucide-waypoints" class="size-5" /></span>
+          <span class="mb-8 flex size-11 items-center justify-center rounded-xl bg-primary text-inverted lg:hidden"><AppLogoMark class="size-7" /></span>
           <p class="eyebrow mb-3">Acesso restrito</p>
           <h2 class="page-heading">Acesse o console</h2>
           <p class="mt-3 text-sm leading-relaxed text-muted">Use a chave definida em <code class="rounded bg-elevated px-1.5 py-1 text-xs text-default">AUTHENTICATION_API_KEY</code>.</p>

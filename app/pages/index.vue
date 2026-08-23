@@ -1,15 +1,26 @@
 <script setup lang="ts">
+const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const open = ref(false)
 const saving = ref(false)
 const form = reactive({ name: '', appSecret: '' })
-const { data: apps, status, error } = await useFetch('/api/apps')
+const page = computed(() => Math.max(1, Number(route.query.page) || 1))
+const pageSize = computed(() => Math.min(50, Math.max(10, Number(route.query.pageSize) || 10)))
+const { data: apps, status, error } = await useFetch('/api/apps', { query: { page, pageSize } })
 const { data: metrics, status: metricsStatus, error: metricsError, refresh: refreshMetrics } = await useFetch('/api/metrics')
-const totalEndpoints = computed(() => apps.value?.reduce((total, app) => total + app._count.endpoints, 0) || 0)
-const totalDeliveries = computed(() => apps.value?.reduce((total, app) => total + app._count.deliveries, 0) || 0)
 const maxVolume = computed(() => Math.max(1, ...(metrics.value?.daily.map(item => item.total) || [])))
 const maxLatency = computed(() => Math.max(1, ...(metrics.value?.daily.map(item => item.averageLatencyMs) || [])))
 const successAngle = computed(() => `${metrics.value?.summary.successRate || 0}%`)
+const pageSizeOptions = [
+  { label: '10 por página', value: 10 },
+  { label: '25 por página', value: 25 },
+  { label: '50 por página', value: 50 }
+]
+
+function updatePageSize(value: number) {
+  router.push({ query: { ...route.query, page: 1, pageSize: value } })
+}
 
 function formatDay(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: 'UTC' }).format(new Date(value)).replace('.', '')
@@ -97,15 +108,15 @@ async function createApp() {
     <section class="panel-core grid sm:grid-cols-3" aria-label="Resumo da operação">
       <article class="border-b border-default p-5 sm:border-b-0 sm:border-r">
         <p class="text-xs font-medium text-muted">Apps configurados</p>
-        <p class="mt-2 font-mono text-2xl font-semibold tracking-tight">{{ apps?.length || 0 }}</p>
+        <p class="mt-2 font-mono text-2xl font-semibold tracking-tight">{{ apps?.total || 0 }}</p>
       </article>
       <article class="border-b border-default p-5 sm:border-b-0 sm:border-r">
         <p class="text-xs font-medium text-muted">Destinos configurados</p>
-        <p class="mt-2 font-mono text-2xl font-semibold tracking-tight">{{ totalEndpoints }}</p>
+        <p class="mt-2 font-mono text-2xl font-semibold tracking-tight">{{ apps?.totalEndpoints || 0 }}</p>
       </article>
       <article class="p-5">
         <p class="text-xs font-medium text-muted">Entregas registradas</p>
-        <p class="mt-2 font-mono text-2xl font-semibold tracking-tight">{{ totalDeliveries.toLocaleString('pt-BR') }}</p>
+        <p class="mt-2 font-mono text-2xl font-semibold tracking-tight">{{ (apps?.totalDeliveries || 0).toLocaleString('pt-BR') }}</p>
       </article>
     </section>
 
@@ -115,9 +126,9 @@ async function createApp() {
       </section>
     </section>
     <UAlert v-else-if="error" title="Não foi possível carregar os apps" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" />
-    <section v-else-if="apps?.length" class="panel-shell">
+    <section v-else-if="apps?.items.length" class="panel-shell">
       <section class="panel-core">
-      <NuxtLink v-for="app in apps" :key="app.id" :to="`/apps/${app.id}`" class="group grid min-h-20 gap-4 border-b border-default p-5 transition-colors duration-200 last:border-b-0 hover:bg-elevated/60 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-6">
+      <NuxtLink v-for="app in apps.items" :key="app.id" :to="`/apps/${app.id}`" class="group grid min-h-20 gap-4 border-b border-default p-5 transition-colors duration-200 last:border-b-0 hover:bg-elevated/60 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-6">
         <section class="flex min-w-0 items-center gap-4">
           <span class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15"><UIcon name="i-lucide-webhook" class="size-5" /></span>
           <span class="min-w-0">
@@ -132,6 +143,13 @@ async function createApp() {
         <UIcon name="i-lucide-chevron-right" class="hidden size-5 text-dimmed transition-transform group-hover:translate-x-0.5 group-hover:text-primary sm:block" />
       </NuxtLink>
       </section>
+      <footer class="flex flex-col gap-3 border-t border-default p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-xs text-muted">Página {{ apps.page }} de {{ apps.pages }} · {{ apps.total.toLocaleString('pt-BR') }} apps</p>
+        <section class="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+          <USelect :model-value="pageSize" :items="pageSizeOptions" aria-label="Apps por página" @update:model-value="updatePageSize" />
+          <UPagination :page="page" :total="apps.total" :items-per-page="apps.pageSize" @update:page="router.push({ query: { ...route.query, page: $event } })" />
+        </section>
+      </footer>
     </section>
     <section v-else class="relative overflow-hidden rounded-xl border border-dashed border-default bg-default px-6 py-16 text-center">
       <div class="surface-grid absolute inset-0 opacity-35" />
@@ -146,7 +164,7 @@ async function createApp() {
     <UModal v-model:open="open" title="Novo app" description="Crie uma nova entrada para receber eventos da Meta.">
       <template #body>
         <form class="flex flex-col gap-5" @submit.prevent="createApp">
-          <UFormField label="Nome do app" description="Use um nome que identifique o produto ou ambiente." required><UInput v-model="form.name" size="lg" autofocus required class="w-full" placeholder="WhatsApp Produção" /></UFormField>
+          <UFormField label="Nome do app" description="Use um nome único que identifique o produto ou ambiente." required><UInput v-model="form.name" size="lg" autofocus required class="w-full" placeholder="WhatsApp Produção" /></UFormField>
           <UFormField label="App Secret" description="Disponível em Configurações > Básico no painel da Meta." required><UInput v-model="form.appSecret" size="lg" type="password" icon="i-lucide-key-round" required class="w-full" /></UFormField>
           <footer class="mt-2 flex flex-col-reverse gap-2 border-t border-default pt-5 sm:flex-row sm:justify-end">
             <UButton label="Cancelar" color="neutral" variant="ghost" @click="open = false" />

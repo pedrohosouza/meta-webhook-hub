@@ -1,6 +1,15 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-22',
   devtools: { enabled: false },
+  app: {
+    head: {
+      title: 'Meta Webhook Hub',
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    }
+  },
   modules: ['@nuxt/ui'],
   css: ['~/assets/css/main.css'],
   vite: {

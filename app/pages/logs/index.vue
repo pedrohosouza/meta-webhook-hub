@@ -12,11 +12,11 @@ const search = ref(typeof route.query.search === 'string' ? route.query.search :
 const attempt = computed(() => Math.max(0, Number(route.query.attempt) || 0))
 const selectedApp = computed(() => appId.value || allValue)
 const selectedResult = computed(() => result.value || allValue)
-const { data: apps } = await useFetch('/api/apps')
+const { data: apps } = await useFetch('/api/apps', { query: { pageSize: 100 } })
 const { data: logs, status, error } = await useFetch('/api/logs', {
   query: { page, pageSize, appId, status: result, search: computed(() => route.query.search || ''), attempt }
 })
-const appOptions = computed(() => [{ label: 'Todos os apps', value: allValue }, ...(apps.value || []).map(app => ({ label: app.name, value: app.id }))])
+const appOptions = computed(() => [{ label: 'Todos os apps', value: allValue }, ...(apps.value?.items || []).map(app => ({ label: app.name, value: app.id }))])
 const resultOptions = [
   { label: 'Todos os resultados', value: allValue }, { label: 'Entregues', value: 'success' },
   { label: 'Erro HTTP', value: 'http_error' }, { label: 'Sem conexão', value: 'connection_error' }
