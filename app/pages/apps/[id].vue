@@ -6,7 +6,6 @@ const saving = ref(false)
 const adding = ref(false)
 const deleteModalOpen = ref(false)
 const deleting = ref(false)
-const showAppSecret = ref(false)
 const testingEndpointId = ref<string | null>(null)
 const endpointUrl = ref('')
 const id = computed(() => route.params.id as string)
@@ -16,12 +15,13 @@ const form = reactive({ name: '', appSecret: '', verifyToken: '' })
 const ingressUrl = computed(() => `${config.public.baseUrl}/api/ingress/${id.value}`)
 const activeEndpoints = computed(() => app.value?.endpoints.filter(endpoint => endpoint.isActive).length || 0)
 
-if (app.value) Object.assign(form, { name: app.value.name, appSecret: app.value.appSecret, verifyToken: app.value.verifyToken })
+if (app.value) Object.assign(form, { name: app.value.name, appSecret: '', verifyToken: app.value.verifyToken })
 
 async function save() {
   saving.value = true
   try {
     await $fetch(`/api/apps/${id.value}`, { method: 'PUT', body: form })
+    form.appSecret = ''
     toast.add({ title: 'Configurações salvas' })
     await refresh()
   } catch (error: any) {
@@ -128,10 +128,8 @@ async function copy(value: string) {
           <form class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6" @submit.prevent="save">
             <UFormField label="Nome do app"><UInput v-model="form.name" size="lg" class="w-full" /></UFormField>
             <UFormField label="Verify Token" description="Deve ser igual ao token informado na Meta."><UInput v-model="form.verifyToken" size="lg" class="w-full" /></UFormField>
-            <UFormField label="App Secret" description="Assina cada payload enviado pela Meta.">
-              <UInput v-model="form.appSecret" size="lg" :type="showAppSecret ? 'text' : 'password'" icon="i-lucide-key-round" class="w-full" autocomplete="off">
-                <template #trailing><UButton :icon="showAppSecret ? 'i-lucide-eye-off' : 'i-lucide-eye'" color="neutral" variant="ghost" size="sm" :aria-label="showAppSecret ? 'Ocultar App Secret' : 'Mostrar App Secret'" @click="showAppSecret = !showAppSecret" /></template>
-              </UInput>
+            <UFormField label="Trocar App Secret" description="Deixe vazio para manter o segredo atual, que não pode ser exibido.">
+              <UInput v-model="form.appSecret" size="lg" type="password" icon="i-lucide-key-round" placeholder="Novo App Secret" class="w-full" autocomplete="new-password" />
             </UFormField>
             <UFormField label="URL de callback" description="Cole este endereço no painel da Meta.">
               <UInput :model-value="ingressUrl" size="lg" readonly class="w-full font-mono text-xs">

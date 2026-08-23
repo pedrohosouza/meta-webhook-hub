@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 
@@ -12,9 +12,13 @@ RUN npx prisma generate
 
 RUN npm run build
 
-FROM node:24-alpine
+FROM node:24-alpine AS runner
 
 WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
 
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/prisma ./prisma
@@ -24,6 +28,4 @@ COPY --from=builder /app/package*.json ./
 
 EXPOSE 3000
 
-ENV NODE_ENV=production
-
-CMD ["sh", "-c", "npx prisma migrate deploy && node .output/server/index.mjs"]
+CMD ["sh", "-c", "npm run db:deploy && exec node .output/server/index.mjs"]

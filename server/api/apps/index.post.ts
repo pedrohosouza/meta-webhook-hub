@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   return prisma.app.create({
     data: {
       name: requiredString(body?.name, 'Nome'),
-      appSecret: requiredString(body?.appSecret, 'App Secret'),
+      appSecret: encryptSecret(requiredString(body?.appSecret, 'App Secret')),
       verifyToken: typeof body?.verifyToken === 'string' && body.verifyToken.trim()
         ? body.verifyToken.trim()
         : randomBytes(24).toString('hex')

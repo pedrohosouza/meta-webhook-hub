@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: pedrohosouza/meta-webhook-hub:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:postgres@database:5432/meta_webhook_hub?schema=public
@@ -14,6 +14,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
   database:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -21,22 +22,26 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: meta_webhook_hub
-    volumes: [postgres_data:/var/lib/postgresql]
+    volumes:
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d meta_webhook_hub"]
       interval: 5s
       timeout: 5s
       retries: 10
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
-    volumes: [redis_data:/data]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+
 volumes:
   postgres_data:
   redis_data:

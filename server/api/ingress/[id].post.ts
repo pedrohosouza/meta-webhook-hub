@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const rawBody = await readRawBody(event, false)
   if (!signature || !rawBody) throw createError({ statusCode: 401, statusMessage: 'Assinatura ausente' })
 
-  const expected = `sha256=${createHmac('sha256', app.appSecret).update(rawBody).digest('hex')}`
+  const expected = `sha256=${createHmac('sha256', decryptSecret(app.appSecret)).update(rawBody).digest('hex')}`
   const providedBuffer = Buffer.from(signature)
   const expectedBuffer = Buffer.from(expected)
   if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {

@@ -47,5 +47,6 @@ model DeliveryLog {
 
   @@index([appId, createdAt])
   @@index([endpointId])
+  @@index([statusCode, createdAt])
   @@map("delivery_logs")
 }

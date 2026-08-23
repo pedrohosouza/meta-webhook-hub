@@ -34,17 +34,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const executionTimeMs = Math.round(performance.now() - startedAt)
-  await prisma.deliveryLog.create({
-    data: {
-      appId: endpoint.appId,
-      endpointId: endpoint.id,
-      eventPayload: payload,
-      statusCode,
-      responseBody,
-      executionTimeMs
-    }
-  })
-
   return {
     ok: statusCode !== null && statusCode >= 200 && statusCode < 300,
     statusCode,

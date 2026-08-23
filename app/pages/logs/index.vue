@@ -1,86 +1,104 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+
 const route = useRoute()
 const router = useRouter()
-const allAppsValue = '__all__'
+const allValue = '__all__'
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
+const pageSize = computed(() => Math.min(100, Math.max(10, Number(route.query.pageSize) || 25)))
 const appId = computed(() => typeof route.query.appId === 'string' ? route.query.appId : '')
-const selectedApp = computed(() => appId.value || allAppsValue)
+const result = computed(() => typeof route.query.status === 'string' ? route.query.status : '')
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
+const selectedApp = computed(() => appId.value || allValue)
+const selectedResult = computed(() => result.value || allValue)
 const { data: apps } = await useFetch('/api/apps')
-const { data: logs, status, error } = await useFetch('/api/logs', { query: { page, appId } })
-const appOptions = computed(() => [{ label: 'Todos os apps', value: allAppsValue }, ...(apps.value || []).map(app => ({ label: app.name, value: app.id }))])
+const { data: logs, status, error } = await useFetch('/api/logs', {
+  query: { page, pageSize, appId, status: result, search: computed(() => route.query.search || '') }
+})
+const appOptions = computed(() => [{ label: 'Todos os apps', value: allValue }, ...(apps.value || []).map(app => ({ label: app.name, value: app.id }))])
+const resultOptions = [
+  { label: 'Todos os resultados', value: allValue }, { label: 'Entregues', value: 'success' },
+  { label: 'Erro HTTP', value: 'http_error' }, { label: 'Sem conexão', value: 'connection_error' }
+]
+const pageSizeOptions = [{ label: '25 por página', value: 25 }, { label: '50 por página', value: 50 }, { label: '100 por página', value: 100 }]
+type DeliveryRow = NonNullable<typeof logs.value>['items'][number]
+const columns: TableColumn<DeliveryRow>[] = [
+  { accessorKey: 'createdAt', header: 'Horário' }, { id: 'result', header: 'Resultado' },
+  { id: 'route', header: 'Rota de entrega' }, { accessorKey: 'executionTimeMs', header: 'Latência' }, { id: 'actions', header: '' }
+]
 
-function setFilter(value: string) {
-  router.push({ query: { ...(value !== allAppsValue ? { appId: value } : {}), page: 1 } })
+function updateQuery(values: Record<string, string | number | undefined>) {
+  router.push({ query: { ...route.query, ...values, page: 1 } })
 }
-
+function setApp(value: string) { updateQuery({ appId: value === allValue ? undefined : value }) }
+function setResult(value: string) { updateQuery({ status: value === allValue ? undefined : value }) }
+function submitSearch() { updateQuery({ search: search.value.trim() || undefined }) }
+function clearFilters() { search.value = ''; router.push({ query: {} }) }
 function statusColor(code: number | null) {
   if (code && code >= 200 && code < 300) return 'success'
   if (code) return 'error'
   return 'warning'
 }
-
 function statusLabel(code: number | null) {
-  if (!code) return 'Falha de conexão'
+  if (!code) return 'Sem conexão'
   if (code >= 200 && code < 300) return `${code} Entregue`
-  return `${code} Recusado`
+  return `${code} Erro HTTP`
+}
+function formatDate(value: string | Date) {
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value))
 }
 </script>
 
 <template>
-  <section class="flex flex-col gap-8">
-    <header class="flex flex-col gap-5 border-b border-default pb-8 sm:flex-row sm:items-end sm:justify-between">
+  <section class="flex flex-col gap-6">
+    <header class="flex flex-col gap-4 border-b border-default pb-6 sm:flex-row sm:items-end sm:justify-between">
       <section>
         <p class="eyebrow mb-3">Observabilidade</p>
         <h1 class="page-heading">Entregas</h1>
-        <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">Inspecione cada tentativa de fanout, o tempo de execução e a resposta do destino.</p>
+        <p class="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Histórico operacional dos eventos reais distribuídos pelo hub. Chamadas de teste não aparecem aqui.</p>
       </section>
-      <UFormField label="App">
-        <USelect :model-value="selectedApp" :items="appOptions" icon="i-lucide-list-filter" size="lg" class="min-w-60" @update:model-value="setFilter" />
-      </UFormField>
+      <section class="flex items-center gap-3 text-sm text-muted" aria-live="polite">
+        <span class="size-2 rounded-full bg-success" aria-hidden="true" />
+        <strong class="font-mono text-lg text-highlighted">{{ (logs?.total || 0).toLocaleString('pt-BR') }}</strong><span>entregas</span>
+      </section>
     </header>
-
-    <section class="panel-core flex items-center justify-between px-5 py-4">
-      <section class="flex items-center gap-3">
-        <span class="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><UIcon name="i-lucide-activity" class="size-4" /></span>
-        <span><strong class="block font-mono text-lg leading-none">{{ logs?.total || 0 }}</strong><small class="text-xs text-muted">registros encontrados</small></span>
-      </section>
-      <span class="hidden font-mono text-[10px] text-muted sm:block">PAGE {{ logs?.page || page }} / {{ logs?.pages || 1 }}</span>
-    </section>
 
     <section class="panel-shell">
       <section class="panel-core">
-      <section v-if="status === 'pending'" class="p-5 sm:p-6">
-        <section v-for="item in 6" :key="item" class="flex items-center gap-5 border-b border-default py-4 last:border-b-0"><USkeleton class="h-4 w-32" /><USkeleton class="h-4 flex-1" /><USkeleton class="h-6 w-24" /></section>
-      </section>
-      <UAlert v-else-if="error" title="Não foi possível carregar as entregas" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" class="m-5" />
-      <section v-else-if="logs?.items.length" class="overflow-x-auto" tabindex="0" aria-label="Tabela de entregas">
-        <table class="w-full min-w-[820px] text-left text-sm">
-          <thead class="border-b border-default bg-elevated/50 text-[11px] font-semibold text-muted">
-            <tr><th class="px-5 py-3.5 sm:px-6">App</th><th class="px-5 py-3.5">Destino</th><th class="px-5 py-3.5">Resultado</th><th class="px-5 py-3.5 text-right">Tempo</th><th class="px-5 py-3.5 text-right sm:px-6">Recebido em</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="log in logs.items" :key="log.id" class="border-b border-default transition-colors last:border-b-0 hover:bg-elevated/40">
-              <td class="px-5 py-4 sm:px-6"><NuxtLink :to="`/logs/${log.id}`" class="font-semibold text-highlighted hover:text-primary">{{ log.app.name }}</NuxtLink></td>
-              <td class="max-w-80 truncate px-5 py-4 font-mono text-xs text-muted">{{ log.endpoint.url }}</td>
-              <td class="px-5 py-4"><UBadge :color="statusColor(log.statusCode)" variant="subtle">{{ statusLabel(log.statusCode) }}</UBadge></td>
-              <td class="px-5 py-4 text-right font-mono text-xs">{{ log.executionTimeMs }} ms</td>
-              <td class="whitespace-nowrap px-5 py-4 text-right font-mono text-xs text-muted sm:px-6">{{ new Date(log.createdAt).toLocaleString('pt-BR') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-      <section v-else class="relative px-6 py-16 text-center">
-        <div class="surface-grid absolute inset-0 opacity-30" />
-        <section class="relative mx-auto max-w-sm">
-          <span class="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-elevated text-muted"><UIcon name="i-lucide-inbox" class="size-6" /></span>
-          <h2 class="font-semibold tracking-tight">Nenhuma entrega registrada</h2>
-          <p class="mt-2 text-sm leading-relaxed text-muted">Os resultados aparecerão aqui depois que um app receber seu primeiro evento.</p>
+        <header class="flex flex-col gap-3 border-b border-default bg-elevated/30 p-4 lg:flex-row lg:items-end">
+          <form class="flex flex-1 flex-col gap-3 sm:flex-row" role="search" @submit.prevent="submitSearch">
+            <UFormField label="Buscar destino" class="flex-1"><UInput v-model="search" icon="i-lucide-search" placeholder="URL ou domínio" class="w-full" /></UFormField>
+            <UButton type="submit" label="Buscar" color="neutral" variant="soft" class="self-end" />
+          </form>
+          <section class="grid gap-3 sm:grid-cols-2 lg:flex">
+            <UFormField label="App"><USelect :model-value="selectedApp" :items="appOptions" class="min-w-48" @update:model-value="setApp" /></UFormField>
+            <UFormField label="Resultado"><USelect :model-value="selectedResult" :items="resultOptions" class="min-w-48" @update:model-value="setResult" /></UFormField>
+          </section>
+          <UButton v-if="appId || result || route.query.search" label="Limpar" icon="i-lucide-x" color="neutral" variant="ghost" class="self-end" @click="clearFilters" />
+        </header>
+
+        <UAlert v-if="error" title="Não foi possível carregar as entregas" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" class="m-4" />
+        <section v-else class="overflow-x-auto" tabindex="0" aria-label="Tabela de entregas">
+          <UTable :data="logs?.items || []" :columns="columns" :loading="status === 'pending'" class="min-w-[860px]">
+            <template #createdAt-cell="{ row }"><time :datetime="String(row.original.createdAt)" class="whitespace-nowrap font-mono text-xs text-muted">{{ formatDate(row.original.createdAt) }}</time></template>
+            <template #result-cell="{ row }">
+              <UBadge :color="statusColor(row.original.statusCode)" variant="subtle"><UIcon :name="row.original.statusCode && row.original.statusCode >= 200 && row.original.statusCode < 300 ? 'i-lucide-check' : 'i-lucide-triangle-alert'" class="size-3.5" aria-hidden="true" />{{ statusLabel(row.original.statusCode) }}</UBadge>
+            </template>
+            <template #route-cell="{ row }"><section class="max-w-md"><p class="truncate text-sm font-semibold text-highlighted">{{ row.original.app.name }}</p><p class="truncate font-mono text-xs text-muted" :title="row.original.endpoint.url">{{ row.original.endpoint.url }}</p></section></template>
+            <template #executionTimeMs-cell="{ row }"><span class="whitespace-nowrap font-mono text-xs" :class="row.original.executionTimeMs > 3000 ? 'text-warning' : 'text-muted'">{{ row.original.executionTimeMs.toLocaleString('pt-BR') }} ms</span></template>
+            <template #actions-cell="{ row }"><UButton :to="`/logs/${row.original.id}`" label="Inspecionar" trailing-icon="i-lucide-arrow-right" color="neutral" variant="ghost" size="sm" /></template>
+            <template #empty><section class="flex flex-col items-center px-6 py-16 text-center"><UIcon name="i-lucide-inbox" class="mb-4 size-8 text-dimmed" aria-hidden="true" /><h2 class="font-semibold">Nenhuma entrega encontrada</h2><p class="mt-1 max-w-sm text-sm text-muted">Ajuste os filtros ou aguarde a chegada de um evento real.</p></section></template>
+          </UTable>
         </section>
-      </section>
+
+        <footer v-if="logs" class="flex flex-col gap-3 border-t border-default p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-xs text-muted">Página {{ logs.page }} de {{ logs.pages }} · até {{ logs.pageSize }} registros por vez</p>
+          <section class="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+            <USelect :model-value="pageSize" :items="pageSizeOptions" @update:model-value="updateQuery({ pageSize: $event })" />
+            <UPagination :page="page" :total="logs.total" :items-per-page="logs.pageSize" @update:page="router.push({ query: { ...route.query, page: $event } })" />
+          </section>
+        </footer>
       </section>
     </section>
-    <footer v-if="logs && logs.pages > 1" class="flex justify-center">
-      <UPagination :page="page" :total="logs.total" :items-per-page="logs.pageSize" @update:page="router.push({ query: { ...route.query, page: $event } })" />
-    </footer>
   </section>
 </template>
