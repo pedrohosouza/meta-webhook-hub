@@ -20,10 +20,11 @@ const delivered = computed(() => Boolean(log.value?.statusCode && log.value.stat
       </section>
     </header>
 
-    <section class="panel-core grid sm:grid-cols-2 xl:grid-cols-4">
+    <section class="panel-core grid sm:grid-cols-2 xl:grid-cols-5">
       <article class="border-b border-default p-5 sm:border-r xl:border-b-0"><p class="text-xs text-muted">App</p><p class="mt-2 truncate font-semibold">{{ log.app.name }}</p></article>
       <article class="border-b border-default p-5 xl:border-b-0 xl:border-r"><p class="text-xs text-muted">Status HTTP</p><p class="mt-2 font-mono text-lg font-semibold">{{ log.statusCode ?? 'Sem resposta' }}</p></article>
       <article class="border-b border-default p-5 sm:border-b-0 sm:border-r"><p class="text-xs text-muted">Tempo de execução</p><p class="mt-2 font-mono text-lg font-semibold">{{ log.executionTimeMs }} ms</p></article>
+      <article class="border-b border-default p-5 sm:border-b-0 sm:border-r"><p class="text-xs text-muted">Tentativa</p><p class="mt-2 font-mono text-lg font-semibold">{{ log.attemptCount }} / 5</p></article>
       <article class="p-5"><p class="text-xs text-muted">Recebido em</p><p class="mt-2 font-mono text-xs font-medium">{{ new Date(log.createdAt).toLocaleString('pt-BR') }}</p></article>
     </section>
 

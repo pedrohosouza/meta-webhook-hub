@@ -30,6 +30,7 @@ CREATE TABLE "delivery_logs" (
     "statusCode" INTEGER,
     "responseBody" TEXT,
     "executionTimeMs" INTEGER NOT NULL,
+    "attemptCount" INTEGER NOT NULL DEFAULT 1,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "delivery_logs_pkey" PRIMARY KEY ("id")
@@ -49,6 +50,9 @@ CREATE INDEX "delivery_logs_endpointId_idx" ON "delivery_logs"("endpointId");
 
 -- CreateIndex
 CREATE INDEX "delivery_logs_statusCode_createdAt_idx" ON "delivery_logs"("statusCode", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "delivery_logs_createdAt_idx" ON "delivery_logs"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "endpoints" ADD CONSTRAINT "endpoints_appId_fkey" FOREIGN KEY ("appId") REFERENCES "apps"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -43,10 +43,12 @@ model DeliveryLog {
   statusCode       Int?
   responseBody     String?
   executionTimeMs  Int
+  attemptCount     Int      @default(1)
   createdAt        DateTime @default(now())
 
   @@index([appId, createdAt])
   @@index([endpointId])
   @@index([statusCode, createdAt])
+  @@index([createdAt])
   @@map("delivery_logs")
 }

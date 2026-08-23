@@ -21,6 +21,7 @@ export default defineNuxtConfig({
     authenticationApiKey: process.env.AUTHENTICATION_API_KEY,
     appEncryptionKey: process.env.NUXT_APP_ENCRYPTION_KEY,
     redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+    deliveryLogRetentionDays: process.env.DELIVERY_LOG_RETENTION_DAYS || '7',
     public: {
       baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     }

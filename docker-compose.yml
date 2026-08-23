@@ -8,6 +8,7 @@ services:
       AUTHENTICATION_API_KEY: ${AUTHENTICATION_API_KEY:?AUTHENTICATION_API_KEY deve ser definida no .env}
       NUXT_APP_ENCRYPTION_KEY: ${NUXT_APP_ENCRYPTION_KEY:?NUXT_APP_ENCRYPTION_KEY deve ser definida no .env}
       NUXT_PUBLIC_BASE_URL: ${NUXT_PUBLIC_BASE_URL:-http://localhost:3000}
+      DELIVERY_LOG_RETENTION_DAYS: ${DELIVERY_LOG_RETENTION_DAYS:-7}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:

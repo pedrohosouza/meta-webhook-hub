@@ -9,11 +9,12 @@ const pageSize = computed(() => Math.min(100, Math.max(10, Number(route.query.pa
 const appId = computed(() => typeof route.query.appId === 'string' ? route.query.appId : '')
 const result = computed(() => typeof route.query.status === 'string' ? route.query.status : '')
 const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
+const attempt = computed(() => Math.max(0, Number(route.query.attempt) || 0))
 const selectedApp = computed(() => appId.value || allValue)
 const selectedResult = computed(() => result.value || allValue)
 const { data: apps } = await useFetch('/api/apps')
 const { data: logs, status, error } = await useFetch('/api/logs', {
-  query: { page, pageSize, appId, status: result, search: computed(() => route.query.search || '') }
+  query: { page, pageSize, appId, status: result, search: computed(() => route.query.search || ''), attempt }
 })
 const appOptions = computed(() => [{ label: 'Todos os apps', value: allValue }, ...(apps.value || []).map(app => ({ label: app.name, value: app.id }))])
 const resultOptions = [
@@ -21,10 +22,11 @@ const resultOptions = [
   { label: 'Erro HTTP', value: 'http_error' }, { label: 'Sem conexão', value: 'connection_error' }
 ]
 const pageSizeOptions = [{ label: '25 por página', value: 25 }, { label: '50 por página', value: 50 }, { label: '100 por página', value: 100 }]
+const attemptOptions = [{ label: 'Todas as tentativas', value: 0 }, ...Array.from({ length: 5 }, (_, index) => ({ label: `Tentativa ${index + 1}`, value: index + 1 }))]
 type DeliveryRow = NonNullable<typeof logs.value>['items'][number]
 const columns: TableColumn<DeliveryRow>[] = [
   { accessorKey: 'createdAt', header: 'Horário' }, { id: 'result', header: 'Resultado' },
-  { id: 'route', header: 'Rota de entrega' }, { accessorKey: 'executionTimeMs', header: 'Latência' }, { id: 'actions', header: '' }
+  { id: 'route', header: 'Rota de entrega' }, { accessorKey: 'attemptCount', header: 'Tentativa' }, { accessorKey: 'executionTimeMs', header: 'Latência' }, { id: 'actions', header: '' }
 ]
 
 function updateQuery(values: Record<string, string | number | undefined>) {
@@ -70,11 +72,12 @@ function formatDate(value: string | Date) {
             <UFormField label="Buscar destino" class="flex-1"><UInput v-model="search" icon="i-lucide-search" placeholder="URL ou domínio" class="w-full" /></UFormField>
             <UButton type="submit" label="Buscar" color="neutral" variant="soft" class="self-end" />
           </form>
-          <section class="grid gap-3 sm:grid-cols-2 lg:flex">
+          <section class="grid gap-3 sm:grid-cols-3 lg:flex">
             <UFormField label="App"><USelect :model-value="selectedApp" :items="appOptions" class="min-w-48" @update:model-value="setApp" /></UFormField>
             <UFormField label="Resultado"><USelect :model-value="selectedResult" :items="resultOptions" class="min-w-48" @update:model-value="setResult" /></UFormField>
+            <UFormField label="Tentativa"><USelect :model-value="attempt" :items="attemptOptions" class="min-w-44" @update:model-value="updateQuery({ attempt: $event || undefined })" /></UFormField>
           </section>
-          <UButton v-if="appId || result || route.query.search" label="Limpar" icon="i-lucide-x" color="neutral" variant="ghost" class="self-end" @click="clearFilters" />
+          <UButton v-if="appId || result || route.query.search || attempt" label="Limpar" icon="i-lucide-x" color="neutral" variant="ghost" class="self-end" @click="clearFilters" />
         </header>
 
         <UAlert v-if="error" title="Não foi possível carregar as entregas" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" class="m-4" />
@@ -85,6 +88,7 @@ function formatDate(value: string | Date) {
               <UBadge :color="statusColor(row.original.statusCode)" variant="subtle"><UIcon :name="row.original.statusCode && row.original.statusCode >= 200 && row.original.statusCode < 300 ? 'i-lucide-check' : 'i-lucide-triangle-alert'" class="size-3.5" aria-hidden="true" />{{ statusLabel(row.original.statusCode) }}</UBadge>
             </template>
             <template #route-cell="{ row }"><section class="max-w-md"><p class="truncate text-sm font-semibold text-highlighted">{{ row.original.app.name }}</p><p class="truncate font-mono text-xs text-muted" :title="row.original.endpoint.url">{{ row.original.endpoint.url }}</p></section></template>
+            <template #attemptCount-cell="{ row }"><UBadge color="neutral" variant="outline">{{ row.original.attemptCount }} / 5</UBadge></template>
             <template #executionTimeMs-cell="{ row }"><span class="whitespace-nowrap font-mono text-xs" :class="row.original.executionTimeMs > 3000 ? 'text-warning' : 'text-muted'">{{ row.original.executionTimeMs.toLocaleString('pt-BR') }} ms</span></template>
             <template #actions-cell="{ row }"><UButton :to="`/logs/${row.original.id}`" label="Inspecionar" trailing-icon="i-lucide-arrow-right" color="neutral" variant="ghost" size="sm" /></template>
             <template #empty><section class="flex flex-col items-center px-6 py-16 text-center"><UIcon name="i-lucide-inbox" class="mb-4 size-8 text-dimmed" aria-hidden="true" /><h2 class="font-semibold">Nenhuma entrega encontrada</h2><p class="mt-1 max-w-sm text-sm text-muted">Ajuste os filtros ou aguarde a chegada de um evento real.</p></section></template>

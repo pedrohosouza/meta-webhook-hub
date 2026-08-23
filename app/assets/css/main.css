@@ -76,6 +76,10 @@ pre,
   color: var(--ui-primary);
 }
 
+.metric-ring {
+  background: conic-gradient(var(--ui-primary) var(--success-rate), var(--ui-error) 0);
+}
+
 :focus-visible {
   scroll-margin: 6rem;
 }

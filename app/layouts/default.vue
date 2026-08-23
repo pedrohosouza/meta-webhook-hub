@@ -3,7 +3,7 @@ const route = useRoute()
 const toast = useToast()
 
 const links = computed(() => [
-  { label: 'Apps', description: 'Hubs e destinos', icon: 'i-lucide-panels-top-left', to: '/', active: route.path === '/' || route.path.startsWith('/apps/') },
+  { label: 'Visão geral', description: 'Métricas e apps', icon: 'i-lucide-chart-no-axes-combined', to: '/', active: route.path === '/' || route.path.startsWith('/apps/') },
   { label: 'Entregas', description: 'Histórico e respostas', icon: 'i-lucide-list-checks', to: '/logs', active: route.path.startsWith('/logs') }
 ])
 

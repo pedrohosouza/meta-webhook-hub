@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import type { Prisma } from '../../../generated/prisma/client'
 
 export default defineEventHandler(async (event) => {
   const appId = getRouterParam(event, 'id')!
@@ -16,14 +17,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Assinatura inválida' })
   }
 
-  let payload: unknown
+  let payload: Prisma.InputJsonValue
   try {
     payload = JSON.parse(rawBody.toString('utf8'))
   } catch {
     throw createError({ statusCode: 400, statusMessage: 'Payload JSON inválido' })
   }
 
-  await getWebhookQueue().add('fanout', { appId, payload })
+  await getWebhookQueue().add('fanout', { kind: 'fanout', appId, payload })
   setResponseStatus(event, 200)
   return { received: true }
 })
