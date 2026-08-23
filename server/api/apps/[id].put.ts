@@ -4,16 +4,17 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const exists = await prisma.app.findUnique({ where: { id }, select: { id: true } })
   if (!exists) throw createError({ statusCode: 404, statusMessage: 'App não encontrado' })
-  const appSecret = typeof body?.appSecret === 'string' && body.appSecret.trim()
-    ? encryptSecret(body.appSecret.trim())
-    : undefined
+  if (body && Object.prototype.hasOwnProperty.call(body, 'appSecret')) {
+    throw createError({ statusCode: 400, statusMessage: 'O App Secret não pode ser alterado' })
+  }
+  if (body && Object.prototype.hasOwnProperty.call(body, 'verifyToken')) {
+    throw createError({ statusCode: 400, statusMessage: 'O Verify Token não pode ser alterado' })
+  }
   try {
     return await prisma.app.update({
       where: { id },
       data: {
-        name: requiredString(body?.name, 'Nome'),
-        ...(appSecret ? { appSecret } : {}),
-        verifyToken: requiredString(body?.verifyToken, 'Verify Token')
+        name: requiredString(body?.name, 'Nome')
       },
       select: { id: true, name: true, verifyToken: true, createdAt: true, updatedAt: true }
     })
