@@ -26,12 +26,6 @@ Quando uma mudança envolver várias áreas, prefira o tipo que melhor represent
 
 Sempre revise o diff e remova logs de debug, arquivos temporários, código comentado de experimentos e outros artefatos temporários antes de criar o commit.
 
-## Depois de abrir uma PR
-
-Nunca faça amend em commits que já fazem parte de uma PR aberta.
-
-Envie correções adicionais como novos commits para preservar o histórico da revisão e os comentários existentes.
-
 ## Formato
 
 Use um título curto e direto:

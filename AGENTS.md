@@ -1,7 +1,7 @@
 # Diretrizes do Repositório
 
 ## 1. Contexto do Projeto
-Você está desenvolvendo o **Meta Webhook Hub**, uma aplicação *self-hosted* projetada para atuar como roteador (fanout) de webhooks da Meta (WhatsApp, Instagram, Messenger). O objetivo é receber eventos da Meta em uma única rota, enfileirar e distribuir (fazer POST) rapidamente para múltiplos endpoints destinos cadastrados pelo usuário.
+Aplicação *self-hosted* projetada para atuar como roteador (fanout) de webhooks da Meta (WhatsApp, Instagram, Messenger). O objetivo é receber eventos da Meta em uma única rota, enfileirar e distribuir (fazer POST) rapidamente para múltiplos endpoints destinos cadastrados pelo usuário.
 
 ## 2. Stack Tecnológica Obrigatória
 - **Framework:** Nuxt 4 (Frontend Vue 3 + Backend Nitro)
