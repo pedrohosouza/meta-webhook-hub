@@ -126,7 +126,11 @@ async function copy(value: string) {
           </header>
           <form class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6" @submit.prevent="save">
             <UFormField label="Nome do app"><UInput v-model="form.name" size="lg" class="w-full" /></UFormField>
-            <UFormField label="Verify Token" description="Definido no cadastro e protegido contra alterações."><UInput :model-value="app.verifyToken" size="lg" icon="i-lucide-lock-keyhole" disabled class="w-full" aria-label="Verify Token protegido" /></UFormField>
+            <UFormField label="Verify Token" description="Definido no cadastro e protegido contra alterações.">
+              <UInput :model-value="app.verifyToken" size="lg" icon="i-lucide-lock-keyhole" disabled class="w-full" aria-label="Verify Token protegido">
+                <template #trailing><UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" aria-label="Copiar Verify Token" @click="copy(app.verifyToken)" /></template>
+              </UInput>
+            </UFormField>
             <UFormField label="App Secret" description="Definido no cadastro e protegido contra alterações.">
               <UInput model-value="••••••••••••••••" size="lg" type="password" icon="i-lucide-lock-keyhole" disabled class="w-full" aria-label="App Secret protegido" />
             </UFormField>
