@@ -10,7 +10,7 @@ const sessionOptions = {
 export async function getAuthSession(event: H3Event) {
   const sessionPassword = getAuthenticationApiKeyHash(event)
   if (!sessionPassword) {
-    throw createError({ statusCode: 500, statusMessage: 'AUTHENTICATION_API_KEY não configurada' })
+    throw createError({ statusCode: 500, statusMessage: 'NUXT_AUTHENTICATION_API_KEY não configurada' })
   }
   return useSession<{ apiKeyHash?: string }>(event, {
     ...sessionOptions,

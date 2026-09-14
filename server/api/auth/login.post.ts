@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   if (!config.authenticationApiKey) {
-    throw createError({ statusCode: 500, statusMessage: 'AUTHENTICATION_API_KEY não configurada' })
+    throw createError({ statusCode: 500, statusMessage: 'NUXT_AUTHENTICATION_API_KEY não configurada' })
   }
   const body = await readBody(event)
   const apiKey = requiredString(body?.apiKey, 'API key')

@@ -2,7 +2,12 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../generated/prisma/client";
 
 const prismaClientSingleton = () => {
-  const pool = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  const databaseUrl = useRuntimeConfig().databaseUrl;
+  if (!databaseUrl) {
+    throw new Error("NUXT_DATABASE_URL não configurada");
+  }
+
+  const pool = new PrismaPg({ connectionString: databaseUrl });
   return new PrismaClient({ adapter: pool });
 };
 

@@ -41,7 +41,7 @@ async function submit() {
           <span class="mb-8 flex size-11 items-center justify-center rounded-xl bg-primary text-inverted lg:hidden"><AppLogoMark class="size-7" /></span>
           <p class="eyebrow mb-3">Acesso restrito</p>
           <h2 class="page-heading">Acesse o console</h2>
-          <p class="mt-3 text-sm leading-relaxed text-muted">Use a chave definida em <code class="rounded bg-elevated px-1.5 py-1 text-xs text-default">AUTHENTICATION_API_KEY</code>.</p>
+          <p class="mt-3 text-sm leading-relaxed text-muted">Use a chave definida em <code class="rounded bg-elevated px-1.5 py-1 text-xs text-default">NUXT_AUTHENTICATION_API_KEY</code>.</p>
         </header>
         <form class="flex flex-col gap-5" @submit.prevent="submit">
           <UFormField label="API key" required>
