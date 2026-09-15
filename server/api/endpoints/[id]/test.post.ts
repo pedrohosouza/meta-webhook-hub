@@ -1,9 +1,11 @@
+import { createHmac } from 'node:crypto'
+
 export default defineEventHandler(async (event) => {
   await requireAuth(event)
   const id = getRouterParam(event, 'id')!
   const endpoint = await prisma.endpoint.findUnique({
     where: { id },
-    select: { id: true, appId: true, url: true }
+    select: { id: true, appId: true, url: true, app: { select: { appSecret: true } } }
   })
 
   if (!endpoint) {
@@ -16,6 +18,8 @@ export default defineEventHandler(async (event) => {
     sentAt: new Date().toISOString(),
     entry: [{ id: endpoint.appId, changes: [{ field: 'test', value: { message: 'Meta Webhook Hub test delivery' } }] }]
   }
+  const rawBody = JSON.stringify(payload)
+  const signature = `sha256=${createHmac('sha256', decryptSecret(endpoint.app.appSecret)).update(rawBody).digest('hex')}`
   const startedAt = performance.now()
   let statusCode: number | null = null
   let responseBody: string | null = null
@@ -23,8 +27,12 @@ export default defineEventHandler(async (event) => {
   try {
     const response = await fetch(endpoint.url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'user-agent': 'Meta-Webhook-Hub/1.0' },
-      body: JSON.stringify(payload),
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'Meta-Webhook-Hub/1.0',
+        'x-hub-signature-256': signature
+      },
+      body: rawBody,
       signal: AbortSignal.timeout(15_000)
     })
     statusCode = response.status

@@ -21,7 +21,9 @@ async function fanout(data: Extract<WebhookJob, { kind: 'fanout' }>) {
       kind: 'delivery' as const,
       appId: data.appId,
       endpointId: endpoint.id,
-      payload: data.payload
+      payload: data.payload,
+      rawBodyBase64: data.rawBodyBase64,
+      signature: data.signature
     },
     opts: deliveryJobOptions
   })))
@@ -40,10 +42,20 @@ async function deliver(data: Extract<WebhookJob, { kind: 'delivery' }>, attemptC
   let retryableError: Error | null = null
 
   try {
+    // Jobs enfileirados por versões anteriores não possuem o envelope bruto.
+    const rawBody = data.rawBodyBase64
+      ? Buffer.from(data.rawBodyBase64, 'base64')
+      : Buffer.from(JSON.stringify(data.payload))
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      'user-agent': 'Meta-Webhook-Hub/1.0'
+    }
+    if (data.signature) headers['x-hub-signature-256'] = data.signature
+
     const response = await fetch(endpoint.url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'user-agent': 'Meta-Webhook-Hub/1.0' },
-      body: JSON.stringify(data.payload),
+      headers,
+      body: rawBody,
       signal: AbortSignal.timeout(15_000)
     })
     statusCode = response.status

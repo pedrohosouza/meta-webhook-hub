@@ -6,9 +6,15 @@ export const WEBHOOK_QUEUE = 'meta-webhook-deliveries'
 export const DELIVERY_ATTEMPTS = 5
 export const DELIVERY_BACKOFF_MS = 5_000
 
+export interface MetaWebhookEnvelope {
+  payload: Prisma.InputJsonValue
+  rawBodyBase64: string
+  signature: string
+}
+
 export type WebhookJob =
-  | { kind: 'fanout', appId: string, payload: Prisma.InputJsonValue }
-  | { kind: 'delivery', appId: string, endpointId: string, payload: Prisma.InputJsonValue }
+  | ({ kind: 'fanout', appId: string } & MetaWebhookEnvelope)
+  | ({ kind: 'delivery', appId: string, endpointId: string } & MetaWebhookEnvelope)
   | { kind: 'retention' }
 
 const globalQueue = globalThis as unknown as {
