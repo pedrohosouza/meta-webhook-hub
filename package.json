@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare && prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "test": "node --test --test-isolation=none tests/*.test.mjs",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {

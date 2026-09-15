@@ -32,6 +32,7 @@ export default defineNuxtConfig({
     appEncryptionKey: '',
     redisUrl: 'redis://localhost:6379',
     deliveryLogRetentionDays: '7',
+    ignoreMetaEventsBefore: '',
     public: {
       baseUrl: 'http://localhost:3000'
     }

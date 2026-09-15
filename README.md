@@ -10,7 +10,9 @@ Roteador self-hosted de webhooks da Meta. Valida HMAC-SHA256, enfileira no Redis
 
 Abra `http://localhost:3000` e informe a `NUXT_AUTHENTICATION_API_KEY` para acessar. As migrações são aplicadas automaticamente.
 
-Todas as configurações da aplicação usam o prefixo `NUXT_` e podem ser sobrescritas quando o container inicia: `NUXT_DATABASE_URL`, `NUXT_REDIS_URL`, `NUXT_AUTHENTICATION_API_KEY`, `NUXT_APP_ENCRYPTION_KEY`, `NUXT_DELIVERY_LOG_RETENTION_DAYS` e `NUXT_PUBLIC_BASE_URL`. O Prisma CLI também consome `NUXT_DATABASE_URL` durante as migrações.
+Todas as configurações da aplicação usam o prefixo `NUXT_` e podem ser sobrescritas quando o container inicia: `NUXT_DATABASE_URL`, `NUXT_REDIS_URL`, `NUXT_AUTHENTICATION_API_KEY`, `NUXT_APP_ENCRYPTION_KEY`, `NUXT_DELIVERY_LOG_RETENTION_DAYS`, `NUXT_IGNORE_META_EVENTS_BEFORE` e `NUXT_PUBLIC_BASE_URL`. O Prisma CLI também consome `NUXT_DATABASE_URL` durante as migrações.
+
+Para confirmar retentativas antigas da Meta sem enfileirá-las, defina `NUXT_IGNORE_META_EVENTS_BEFORE` com uma data RFC 3339 que inclua timezone, por exemplo `2026-09-14T14:30:00-04:00`. Deixe a variável vazia para desabilitar o filtro. A variável pode ser removida depois de oito dias, quando a janela máxima de retentativas antigas terminar.
 
 ## Chatwoot com WhatsApp Cloud API
 

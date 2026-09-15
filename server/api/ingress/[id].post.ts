@@ -24,13 +24,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Payload JSON inválido' })
   }
 
-  await getWebhookQueue().add('fanout', {
-    kind: 'fanout',
-    appId,
+  const ignoredResponse = await processVerifiedMetaWebhook({
     payload,
-    rawBodyBase64: rawBody.toString('base64'),
-    signature
+    cutoff: parseMetaEventsBefore(useRuntimeConfig(event).ignoreMetaEventsBefore),
+    enqueue: async () => {
+      await getWebhookQueue().add('fanout', {
+        kind: 'fanout',
+        appId,
+        payload,
+        rawBodyBase64: rawBody.toString('base64'),
+        signature
+      })
+    }
   })
+  if (ignoredResponse) return ignoredResponse
+
   setResponseStatus(event, 200)
   return { received: true }
 })
