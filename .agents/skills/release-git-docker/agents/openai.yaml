@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Git + Docker"
+  short_description: "Publica versões no GitHub e Docker Hub"
+  default_prompt: "Use $release-git-docker para versionar e publicar esta alteração no GitHub e Docker Hub."
