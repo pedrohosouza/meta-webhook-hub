@@ -14,7 +14,6 @@ const delivered = computed(() => Boolean(log.value?.statusCode && log.value.stat
       <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <section>
           <h1 class="page-heading">Detalhes da entrega</h1>
-          <p class="mt-2 font-mono text-[11px] text-muted">{{ log.id }}</p>
         </section>
         <UBadge :color="delivered ? 'success' : 'error'" variant="subtle" size="lg" class="self-start sm:self-auto">{{ delivered ? 'Entregue' : 'Falha na entrega' }}</UBadge>
       </section>

@@ -2,7 +2,7 @@ export default defineEventHandler(async (event) => {
   await requireAuth(event)
   const query = getQuery(event)
   const page = Math.max(1, Number(query.page) || 1)
-  const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 20))
+  const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 10))
   const appId = typeof query.appId === 'string' ? query.appId : ''
   const status = typeof query.status === 'string' ? query.status : ''
   const search = typeof query.search === 'string' ? query.search.trim().slice(0, 200) : ''

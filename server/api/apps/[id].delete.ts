@@ -3,5 +3,6 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')!
   const result = await prisma.app.deleteMany({ where: { id } })
   if (!result.count) throw createError({ statusCode: 404, statusMessage: 'App não encontrado' })
+  notifyHubChange()
   return { ok: true }
 })

@@ -78,6 +78,8 @@ async function deliver(data: Extract<WebhookJob, { kind: 'delivery' }>, attemptC
     }
   })
 
+  notifyHubChange()
+
   if (retryableError) throw retryableError
 }
 
@@ -85,6 +87,7 @@ async function removeExpiredLogs() {
   const days = retentionDays()
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   const result = await prisma.deliveryLog.deleteMany({ where: { createdAt: { lt: cutoff } } })
+  if (result.count) notifyHubChange()
   console.info(`[delivery-retention] ${result.count} registros removidos; retenção de ${days} dias`)
 }
 

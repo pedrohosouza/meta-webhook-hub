@@ -24,6 +24,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Payload JSON inválido' })
   }
 
+  publishWebhookTest(appId, payload)
+
   const ignoredResponse = await processVerifiedMetaWebhook({
     payload,
     cutoff: parseMetaEventsBefore(useRuntimeConfig(event).ignoreMetaEventsBefore),

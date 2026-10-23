@@ -3,5 +3,6 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')!
   const result = await prisma.endpoint.deleteMany({ where: { id } })
   if (!result.count) throw createError({ statusCode: 404, statusMessage: 'Endpoint não encontrado' })
+  notifyHubChange()
   return { ok: true }
 })

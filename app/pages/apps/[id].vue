@@ -5,38 +5,101 @@ const toast = useToast()
 const saving = ref(false)
 const adding = ref(false)
 const deleteModalOpen = ref(false)
+const webhookTestOpen = ref(false)
 const deleting = ref(false)
 const testingEndpointId = ref<string | null>(null)
 const endpointUrl = ref('')
+const endpointError = ref<string>()
+const endpointInput = ref<{ inputRef?: HTMLInputElement } | null>(null)
+const highlightedEndpointId = ref<string | null>(null)
 const id = computed(() => route.params.id as string)
 const { data: app, status, error, refresh } = await useFetch(() => `/api/apps/${id.value}`)
 const endpointToRemove = ref<NonNullable<typeof app.value>['endpoints'][number] | null>(null)
-const form = reactive({ name: '' })
+const editingName = ref(false)
+const nameDraft = ref('')
 const ingressUrl = computed(() => `${config.public.baseUrl}/api/ingress/${id.value}`)
-const activeEndpoints = computed(() => app.value?.endpoints.filter(endpoint => endpoint.isActive).length || 0)
+const webhookFields = computed(() => [
+  { label: 'URL de callback', value: ingressUrl.value },
+  { label: 'Verify Token', value: app.value?.verifyToken || '' }
+])
 
-if (app.value) form.name = app.value.name
+function startEditingName() {
+  nameDraft.value = app.value?.name || ''
+  editingName.value = true
+}
 
-async function save() {
+function cancelEditingName() {
+  if (!saving.value) editingName.value = false
+}
+
+async function saveName() {
+  const name = nameDraft.value.trim()
+  if (!name || name === app.value?.name) {
+    editingName.value = false
+    return
+  }
   saving.value = true
   try {
-    await $fetch(`/api/apps/${id.value}`, { method: 'PUT', body: form })
-    toast.add({ title: 'Configurações salvas' })
+    await $fetch(`/api/apps/${id.value}`, { method: 'PUT', body: { name } })
+    editingName.value = false
+    toast.add({ title: 'Nome atualizado' })
     await refresh()
   } catch (error: any) {
     toast.add({ title: 'Falha ao salvar', description: error.data?.statusMessage, color: 'error' })
   } finally { saving.value = false }
 }
 
+function normalizeEndpointUrl(raw: string) {
+  const value = raw.trim()
+  if (!value) return null
+  try {
+    const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(value) ? value : `https://${value}`)
+    return ['http:', 'https:'].includes(url.protocol) && url.hostname ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
+function validateEndpoint() {
+  if (!endpointUrl.value.trim()) {
+    endpointError.value = 'Informe a URL do destino'
+    return null
+  }
+  const url = normalizeEndpointUrl(endpointUrl.value)
+  if (!url) {
+    endpointError.value = 'Informe uma URL válida, como https://servico.exemplo.com/webhooks'
+    return null
+  }
+  if (app.value?.endpoints.some(endpoint => normalizeEndpointUrl(endpoint.url) === url)) {
+    endpointError.value = 'Este destino já está cadastrado neste app'
+    return null
+  }
+  endpointError.value = undefined
+  return url
+}
+
+function validateEndpointOnBlur() {
+  if (endpointUrl.value.trim()) validateEndpoint()
+}
+
 async function addEndpoint() {
+  const url = validateEndpoint()
+  if (!url) {
+    endpointInput.value?.inputRef?.focus()
+    return
+  }
   adding.value = true
   try {
-    await $fetch(`/api/apps/${id.value}/endpoints`, { method: 'POST', body: { url: endpointUrl.value } })
+    const endpoint = await $fetch(`/api/apps/${id.value}/endpoints`, { method: 'POST', body: { url } })
     endpointUrl.value = ''
     toast.add({ title: 'Destino adicionado' })
     await refresh()
+    highlightedEndpointId.value = endpoint.id
+    setTimeout(() => { highlightedEndpointId.value = null }, 2500)
+    endpointInput.value?.inputRef?.focus()
   } catch (error: any) {
-    toast.add({ title: 'Falha ao adicionar', description: error.data?.statusMessage, color: 'error' })
+    if (error.statusCode === 409 || error.status === 409) endpointError.value = error.data?.statusMessage
+    else toast.add({ title: 'Falha ao adicionar', description: error.data?.statusMessage, color: 'error' })
   } finally { adding.value = false }
 }
 
@@ -80,7 +143,7 @@ async function removeApp() {
     await $fetch(`/api/apps/${id.value}`, { method: 'DELETE' })
     deleteModalOpen.value = false
     toast.add({ title: 'App excluído' })
-    await navigateTo('/')
+    await navigateTo('/apps')
   } catch (error: any) {
     toast.add({ title: 'Falha ao excluir', description: error.data?.statusMessage, color: 'error' })
   } finally {
@@ -95,67 +158,96 @@ async function copy(value: string) {
 </script>
 
 <template>
-  <section v-if="status === 'pending'" class="flex flex-col gap-5" aria-label="Carregando app">
+  <section v-if="!app && status === 'pending'" class="flex flex-col gap-5" aria-label="Carregando app">
     <USkeleton class="h-24 rounded-xl" />
     <USkeleton class="h-72 rounded-xl" />
     <USkeleton class="h-64 rounded-xl" />
   </section>
-  <UAlert v-else-if="error" title="Não foi possível carregar o app" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" />
+  <UAlert v-else-if="!app && error" title="Não foi possível carregar o app" :description="error.statusMessage" icon="i-lucide-triangle-alert" color="error" variant="subtle" />
   <section v-else-if="app" class="flex flex-col gap-8">
     <header class="flex flex-col gap-5 border-b border-default pb-8 sm:flex-row sm:items-end sm:justify-between">
       <section>
-        <UButton to="/" label="Apps" icon="i-lucide-arrow-left" color="neutral" variant="link" class="mb-3 px-0" />
-        <h1 class="page-heading">{{ app.name }}</h1>
-        <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-muted">
-          <span>{{ app.id }}</span>
-          <span class="text-primary">{{ activeEndpoints }} destinos ativos</span>
-        </p>
+        <UButton to="/apps" label="Aplicativos" icon="i-lucide-arrow-left" color="neutral" variant="link" class="mb-3 px-0" />
+        <form v-if="editingName" class="flex items-center gap-2" @submit.prevent="saveName" @keydown.esc="cancelEditingName">
+          <UInput v-model="nameDraft" size="xl" autofocus required aria-label="Nome do app" class="w-full min-w-0 sm:w-96" :disabled="saving" />
+          <UButton type="submit" icon="i-lucide-check" color="primary" aria-label="Salvar nome" :loading="saving" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" aria-label="Cancelar edição" :disabled="saving" @click="cancelEditingName" />
+        </form>
+        <section v-else class="flex items-center gap-2">
+          <h1 class="page-heading">{{ app.name }}</h1>
+          <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" aria-label="Editar nome do app" @click="startEditingName" />
+        </section>
       </section>
       <UButton label="Excluir app" icon="i-lucide-trash-2" color="error" variant="soft" class="self-start whitespace-nowrap sm:self-auto" @click="deleteModalOpen = true" />
     </header>
 
-    <section class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <section class="flex flex-col gap-8">
       <section class="flex flex-col gap-8">
         <section class="panel-core">
-          <header class="flex items-start gap-4 border-b border-default px-5 py-5 sm:px-6">
+          <header class="flex items-center gap-4 border-b border-default px-5 py-5 sm:px-6">
             <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><UIcon name="i-lucide-badge-check" class="size-5" /></span>
-            <section>
-              <h2 class="font-semibold tracking-tight">Integração Meta</h2>
-              <p class="mt-1 text-sm text-muted">Credenciais usadas no handshake e na validação de eventos.</p>
-            </section>
+            <h2 class="font-semibold tracking-tight">Integração Meta</h2>
+            <UButton class="ml-auto" label="Testar webhook" icon="i-lucide-radio-tower" color="primary" @click="webhookTestOpen = true" />
           </header>
-          <form class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6" @submit.prevent="save">
-            <UFormField label="Nome do app"><UInput v-model="form.name" size="lg" class="w-full" /></UFormField>
-            <UFormField label="Verify Token" description="Definido no cadastro e protegido contra alterações.">
-              <UInput :model-value="app.verifyToken" size="lg" icon="i-lucide-lock-keyhole" disabled class="w-full" aria-label="Verify Token protegido">
-                <template #trailing><UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" aria-label="Copiar Verify Token" @click="copy(app.verifyToken)" /></template>
+          <section class="grid gap-5 p-5 sm:p-6">
+            <UFormField label="App Secret">
+              <UInput :model-value="app.appSecret" size="lg" icon="i-lucide-lock-keyhole" disabled class="w-full font-mono text-xs" aria-label="App Secret protegido">
+                <template #trailing><UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" aria-label="Copiar App Secret" @click="copy(app.appSecret)" /></template>
               </UInput>
             </UFormField>
-            <UFormField label="App Secret" description="Definido no cadastro e protegido contra alterações.">
-              <UInput model-value="••••••••••••••••" size="lg" type="password" icon="i-lucide-lock-keyhole" disabled class="w-full" aria-label="App Secret protegido" />
-            </UFormField>
-            <UFormField label="URL de callback" description="Cole este endereço no painel da Meta.">
-              <UInput :model-value="ingressUrl" size="lg" readonly class="w-full font-mono text-xs">
-                <template #trailing><UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" aria-label="Copiar URL" @click="copy(ingressUrl)" /></template>
-              </UInput>
-            </UFormField>
-            <footer class="border-t border-default pt-5 sm:col-span-2"><UButton type="submit" label="Salvar alterações" icon="i-lucide-save" :loading="saving" /></footer>
-          </form>
+
+            <section class="overflow-hidden rounded-xl bg-elevated/40 ring-1 ring-default" aria-label="Dados para configurar o webhook na Meta">
+              <header class="border-b border-default px-4 py-3"><h3 class="text-sm font-semibold">Configuração do webhook</h3></header>
+              <dl class="divide-y divide-default">
+                <div v-for="field in webhookFields" :key="field.label" class="grid gap-1.5 px-4 py-3 sm:grid-cols-[132px_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                  <dt class="text-xs font-medium text-muted">{{ field.label }}</dt>
+                  <dd class="overflow-x-auto whitespace-nowrap font-mono text-xs leading-relaxed text-highlighted select-all">{{ field.value }}</dd>
+                  <UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" class="justify-self-start sm:justify-self-end" :aria-label="`Copiar ${field.label}`" @click="copy(field.value)" />
+                </div>
+              </dl>
+            </section>
+
+          </section>
         </section>
 
         <section class="panel-core">
           <header class="border-b border-default px-5 py-5 sm:px-6">
             <h2 class="font-semibold tracking-tight">Destinos de entrega</h2>
-            <p class="mt-1 text-sm text-muted">Eventos válidos são enviados em paralelo para todos os destinos ativos.</p>
           </header>
-          <form class="flex flex-col gap-3 border-b border-default bg-elevated/40 p-5 sm:flex-row sm:p-6" @submit.prevent="addEndpoint">
-            <UInput v-model="endpointUrl" type="url" size="lg" icon="i-lucide-link" placeholder="https://servico.exemplo.com/webhooks" class="flex-1" required />
-            <UButton type="submit" label="Adicionar destino" icon="i-lucide-plus" size="lg" class="whitespace-nowrap" :loading="adding" />
+          <form class="flex flex-col gap-3 border-b border-default bg-elevated/40 p-5 sm:flex-row sm:items-start sm:p-6" novalidate @submit.prevent="addEndpoint">
+            <UFormField :error="endpointError" class="flex-1">
+              <UInput
+                ref="endpointInput"
+                v-model="endpointUrl"
+                size="lg"
+                icon="i-lucide-link"
+                inputmode="url"
+                autocomplete="off"
+                placeholder="Cole a URL do destino, ex.: https://servico.exemplo.com/webhooks"
+                aria-label="URL do destino"
+                class="w-full"
+                @update:model-value="endpointError = undefined"
+                @blur="validateEndpointOnBlur"
+              />
+            </UFormField>
+            <UButton type="submit" label="Adicionar destino" icon="i-lucide-plus" size="lg" class="justify-center whitespace-nowrap" :loading="adding" />
           </form>
           <ul v-if="app.endpoints.length">
-            <li v-for="endpoint in app.endpoints" :key="endpoint.id" class="grid gap-4 border-b border-default p-5 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6">
+            <li v-for="endpoint in app.endpoints" :key="endpoint.id" :class="['grid gap-4 border-b border-default p-5 transition-colors duration-700 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6', highlightedEndpointId === endpoint.id ? 'bg-primary/10' : '']">
               <section class="flex min-w-0 items-center gap-4">
-                <span :class="['flex size-10 shrink-0 items-center justify-center rounded-xl', endpoint.isActive ? 'bg-primary/10 text-primary' : 'bg-elevated text-dimmed']"><UIcon name="i-lucide-send" class="size-4" /></span>
+                <UTooltip text="Enviar teste">
+                  <UButton
+                    icon="i-lucide-send"
+                    size="lg"
+                    :color="endpoint.isActive ? 'primary' : 'neutral'"
+                    variant="soft"
+                    class="size-10 shrink-0 justify-center rounded-xl"
+                    :loading="testingEndpointId === endpoint.id"
+                    :disabled="testingEndpointId !== null && testingEndpointId !== endpoint.id"
+                    :aria-label="`Enviar teste para ${endpoint.url}`"
+                    @click="testEndpoint(endpoint.id)"
+                  />
+                </UTooltip>
                 <section class="min-w-0">
                   <p class="truncate font-mono text-xs font-medium text-default">{{ endpoint.url }}</p>
                   <p class="mt-1 text-xs text-muted">{{ endpoint.isActive ? 'Recebendo eventos' : 'Entrega pausada' }}</p>
@@ -163,7 +255,6 @@ async function copy(value: string) {
               </section>
               <section class="flex items-center justify-end gap-3">
                 <USwitch :model-value="endpoint.isActive" :aria-label="`Alternar ${endpoint.url}`" @update:model-value="toggleEndpoint(endpoint)" />
-                <UButton icon="i-lucide-play" color="primary" variant="ghost" size="sm" :loading="testingEndpointId === endpoint.id" :disabled="testingEndpointId !== null && testingEndpointId !== endpoint.id" :aria-label="`Testar ${endpoint.url}`" @click="testEndpoint(endpoint.id)" />
                 <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="sm" :aria-label="`Remover ${endpoint.url}`" @click="endpointToRemove = endpoint" />
               </section>
             </li>
@@ -176,18 +267,9 @@ async function copy(value: string) {
         </section>
       </section>
 
-      <aside class="panel-core self-start p-5 xl:sticky xl:top-10">
-        <h2 class="text-sm font-semibold tracking-tight">Checklist da Meta</h2>
-        <ol class="mt-5 flex flex-col gap-5">
-          <li class="flex gap-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs text-primary">1</span><p class="text-sm leading-relaxed text-muted">Copie a URL de callback para a configuração do webhook.</p></li>
-          <li class="flex gap-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs text-primary">2</span><p class="text-sm leading-relaxed text-muted">Informe exatamente o mesmo Verify Token.</p></li>
-          <li class="flex gap-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs text-primary">3</span><p class="text-sm leading-relaxed text-muted">Assine os campos de webhook que deseja receber.</p></li>
-        </ol>
-        <section class="mt-6 border-t border-default pt-5">
-          <p class="flex items-start gap-2 text-xs leading-relaxed text-muted"><UIcon name="i-lucide-shield-check" class="mt-0.5 size-4 shrink-0 text-primary" />O App Secret valida a assinatura HMAC antes de qualquer evento entrar na fila.</p>
-        </section>
-      </aside>
     </section>
+
+    <WebhookTestModal v-model:open="webhookTestOpen" :app-id="id" :app-name="app.name" />
 
     <UModal v-model:open="deleteModalOpen" title="Excluir app" description="Esta ação não pode ser desfeita.">
       <template #body>

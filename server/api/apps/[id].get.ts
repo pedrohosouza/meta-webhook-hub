@@ -4,10 +4,10 @@ export default defineEventHandler(async (event) => {
   const app = await prisma.app.findUnique({
     where: { id },
     select: {
-      id: true, name: true, verifyToken: true, createdAt: true, updatedAt: true,
+      id: true, name: true, verifyToken: true, appSecret: true, createdAt: true, updatedAt: true,
       endpoints: { orderBy: { createdAt: 'asc' } }
     }
   })
   if (!app) throw createError({ statusCode: 404, statusMessage: 'App não encontrado' })
-  return app
+  return { ...app, appSecret: decryptSecret(app.appSecret) }
 })

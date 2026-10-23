@@ -11,6 +11,7 @@
 
 html {
   background: var(--ui-bg);
+  scrollbar-gutter: stable;
   scroll-padding-top: 5rem;
 }
 
