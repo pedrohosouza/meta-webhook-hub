@@ -31,6 +31,7 @@ export default defineNuxtConfig({
     authenticationApiKey: '',
     appEncryptionKey: '',
     redisUrl: 'redis://localhost:6379',
+    redisPrefix: 'meta-webhook-hub',
     deliveryLogRetentionDays: '7',
     ignoreMetaEventsBefore: '',
     public: {

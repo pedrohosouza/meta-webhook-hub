@@ -2,17 +2,20 @@ export default defineEventHandler(async (event) => {
   await requireAuth(event)
   const id = getRouterParam(event, 'id')!
   const body = await readBody(event)
-  if (!await prisma.endpoint.findUnique({ where: { id }, select: { id: true } })) {
-    throw createError({ statusCode: 404, statusMessage: 'Endpoint não encontrado' })
-  }
+  const current = await prisma.endpoint.findUnique({ where: { id }, select: { appId: true } })
+  if (!current) throw createError({ statusCode: 404, statusMessage: 'Endpoint não encontrado' })
   try {
-    return await prisma.endpoint.update({
+    const url = body?.url !== undefined ? validUrl(body.url) : undefined
+    const updated = await prisma.$transaction(async tx => tx.endpoint.update({
       where: { id },
       data: {
-        ...(body?.url !== undefined ? { url: validUrl(body.url) } : {}),
-        ...(typeof body?.isActive === 'boolean' ? { isActive: body.isActive } : {})
+        ...(url ? { url } : {}),
+        ...(typeof body?.isActive === 'boolean' ? { isActive: body.isActive } : {}),
+        ...await resolveEndpointRule(tx, current.appId, body)
       }
-    })
+    }))
+    notifyHubChange()
+    return updated
   } catch (error: unknown) {
     if (typeof error === 'object' && error && 'code' in error && error.code === 'P2002') {
       throw createError({ statusCode: 409, statusMessage: 'Este destino já está cadastrado neste app' })

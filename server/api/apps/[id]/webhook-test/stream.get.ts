@@ -8,11 +8,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const stream = createEventStream(event)
-  const unsubscribe = subscribeWebhookTest(id, message => void stream.push(JSON.stringify({ kind: 'message', ...message })).catch(() => {}))
+  const unsubscribeMessages = subscribeWebhookTest(id, message => void stream.push(JSON.stringify({ kind: 'message', ...message })).catch(() => {}))
+  const unsubscribePayloads = getQuery(event).payload === '1'
+    ? subscribeWebhookPayloads(id, payload => void stream.push(JSON.stringify({ kind: 'payload', payload })).catch(() => {}))
+    : () => {}
   const heartbeat = setInterval(() => void stream.push(JSON.stringify({ kind: 'ping' })).catch(() => {}), HEARTBEAT_INTERVAL_MS)
   stream.onClosed(() => {
     clearInterval(heartbeat)
-    unsubscribe()
+    unsubscribeMessages()
+    unsubscribePayloads()
   })
 
   void stream.push(JSON.stringify({ kind: 'connected' })).catch(() => {})

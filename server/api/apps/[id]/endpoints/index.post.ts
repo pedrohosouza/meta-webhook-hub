@@ -6,7 +6,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'App não encontrado' })
   }
   try {
-    const created = await prisma.endpoint.create({ data: { appId, url: validUrl(body?.url), isActive: body?.isActive !== false } })
+    const url = validUrl(body?.url)
+    const created = await prisma.$transaction(async tx => tx.endpoint.create({
+      data: { appId, url, isActive: body?.isActive !== false, ...await resolveEndpointRule(tx, appId, body) }
+    }))
     notifyHubChange()
     return created
   } catch (error: unknown) {

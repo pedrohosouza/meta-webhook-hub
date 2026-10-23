@@ -22,6 +22,11 @@ const globalQueue = globalThis as unknown as {
   queueConnection?: IORedis
 }
 
+/** Prefixo das chaves do BullMQ no Redis; o BullMQ acrescenta o `:` e o nome da fila (ex.: `meta-webhook-hub:meta-webhook-deliveries:wait`). */
+export function getQueuePrefix() {
+  return useRuntimeConfig().redisPrefix.trim() || 'meta-webhook-hub'
+}
+
 export function getRedisConnection() {
   globalQueue.queueConnection ??= new IORedis(useRuntimeConfig().redisUrl, {
     maxRetriesPerRequest: null
@@ -32,6 +37,7 @@ export function getRedisConnection() {
 export function getWebhookQueue(): Queue<WebhookJob> {
   globalQueue.webhookQueue ??= new Queue<WebhookJob>(WEBHOOK_QUEUE, {
     connection: getRedisConnection(),
+    prefix: getQueuePrefix(),
     defaultJobOptions: { removeOnComplete: 500, removeOnFail: 1000 }
   })
   return globalQueue.webhookQueue as Queue<WebhookJob>

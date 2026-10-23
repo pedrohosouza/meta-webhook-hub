@@ -11,16 +11,25 @@ function retentionDays() {
 async function fanout(data: Extract<WebhookJob, { kind: 'fanout' }>) {
   const endpoints = await prisma.endpoint.findMany({
     where: { appId: data.appId, isActive: true },
-    select: { id: true }
+    select: { id: true, rule: { select: { matchMode: true, conditions: true } } }
   })
-  if (!endpoints.length) return
+  // Destino sem regra recebe tudo; os demais só o que a regra aceita.
+  const targets = selectEndpoints(endpoints.map(endpoint => ({
+    id: endpoint.id,
+    rule: endpoint.rule && { matchMode: endpoint.rule.matchMode, conditions: endpoint.rule.conditions as unknown as RuleCondition[] }
+  })), data.payload)
 
-  await getWebhookQueue().addBulk(endpoints.map(endpoint => ({
+  if (targets.length < endpoints.length) {
+    console.info({ event: targets.length ? 'meta_webhook_filtered' : 'meta_webhook_dropped', appId: data.appId, endpoints: endpoints.length, delivered: targets.length })
+  }
+  if (!targets.length) return
+
+  await getWebhookQueue().addBulk(targets.map(endpointId => ({
     name: 'delivery',
     data: {
       kind: 'delivery' as const,
       appId: data.appId,
-      endpointId: endpoint.id,
+      endpointId,
       payload: data.payload,
       rawBodyBase64: data.rawBodyBase64,
       signature: data.signature
@@ -106,7 +115,7 @@ export default defineNitroPlugin(async (nitroApp) => {
     if (job.data.kind === 'fanout') return fanout(job.data)
     if (job.data.kind === 'delivery') return deliver(job.data, job.attemptsMade + 1)
     return removeExpiredLogs()
-  }, { connection, concurrency: 10 })
+  }, { connection, prefix: getQueuePrefix(), concurrency: 10 })
 
   globalWorker.webhookWorker.on('error', error => console.error('[webhook-worker]', error))
   nitroApp.hooks.hook('close', async () => {

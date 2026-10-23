@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { RuleDto } from '~/components/RuleEditor.vue'
+
 const route = useRoute()
 const config = useRuntimeConfig()
 const toast = useToast()
 const saving = ref(false)
-const adding = ref(false)
 const deleteModalOpen = ref(false)
 const webhookTestOpen = ref(false)
 const deleting = ref(false)
@@ -12,9 +13,14 @@ const endpointUrl = ref('')
 const endpointError = ref<string>()
 const endpointInput = ref<{ inputRef?: HTMLInputElement } | null>(null)
 const highlightedEndpointId = ref<string | null>(null)
+const dialogOpen = ref(false)
+const dialogEndpoint = ref<{ id: string, url: string, isActive: boolean, ruleId: string | null } | null>(null)
+const pendingUrl = ref<string | null>(null)
 const id = computed(() => route.params.id as string)
 const { data: app, status, error, refresh } = await useFetch(() => `/api/apps/${id.value}`)
-const endpointToRemove = ref<NonNullable<typeof app.value>['endpoints'][number] | null>(null)
+const rules = computed<RuleDto[]>(() => (app.value?.rules ?? []).map(rule => ({ ...rule, conditions: rule.conditions as unknown as RuleCondition[] })))
+const ruleNameOf = (ruleId: string | null) => rules.value.find(rule => rule.id === ruleId)?.name
+const endpointToRemove = ref<{ id: string, url: string } | null>(null)
 const editingName = ref(false)
 const nameDraft = ref('')
 const ingressUrl = computed(() => `${config.public.baseUrl}/api/ingress/${id.value}`)
@@ -82,28 +88,34 @@ function validateEndpointOnBlur() {
   if (endpointUrl.value.trim()) validateEndpoint()
 }
 
-async function addEndpoint() {
+function addEndpoint() {
   const url = validateEndpoint()
   if (!url) {
     endpointInput.value?.inputRef?.focus()
     return
   }
-  adding.value = true
-  try {
-    const endpoint = await $fetch(`/api/apps/${id.value}/endpoints`, { method: 'POST', body: { url } })
-    endpointUrl.value = ''
-    toast.add({ title: 'Destino adicionado' })
-    await refresh()
-    highlightedEndpointId.value = endpoint.id
-    setTimeout(() => { highlightedEndpointId.value = null }, 2500)
-    endpointInput.value?.inputRef?.focus()
-  } catch (error: any) {
-    if (error.statusCode === 409 || error.status === 409) endpointError.value = error.data?.statusMessage
-    else toast.add({ title: 'Falha ao adicionar', description: error.data?.statusMessage, color: 'error' })
-  } finally { adding.value = false }
+  pendingUrl.value = url
+  dialogEndpoint.value = null
+  dialogOpen.value = true
 }
 
-async function toggleEndpoint(endpoint: NonNullable<typeof app.value>['endpoints'][number]) {
+function editRule(endpoint: { id: string, url: string, isActive: boolean, ruleId: string | null }) {
+  pendingUrl.value = null
+  dialogEndpoint.value = endpoint
+  dialogOpen.value = true
+}
+
+async function onEndpointSaved(endpointId: string) {
+  const created = Boolean(pendingUrl.value)
+  if (created) endpointUrl.value = ''
+  toast.add({ title: created ? 'Destino adicionado' : 'Destino atualizado' })
+  await refresh()
+  highlightedEndpointId.value = endpointId
+  setTimeout(() => { highlightedEndpointId.value = null }, 2500)
+  if (created) endpointInput.value?.inputRef?.focus()
+}
+
+async function toggleEndpoint(endpoint: { id: string, isActive: boolean }) {
   await $fetch(`/api/endpoints/${endpoint.id}`, { method: 'PUT', body: { isActive: !endpoint.isActive } })
   await refresh()
 }
@@ -230,7 +242,7 @@ async function copy(value: string) {
                 @blur="validateEndpointOnBlur"
               />
             </UFormField>
-            <UButton type="submit" label="Adicionar destino" icon="i-lucide-plus" size="lg" class="justify-center whitespace-nowrap" :loading="adding" />
+            <UButton type="submit" label="Adicionar destino" icon="i-lucide-plus" size="lg" class="justify-center whitespace-nowrap" />
           </form>
           <ul v-if="app.endpoints.length">
             <li v-for="endpoint in app.endpoints" :key="endpoint.id" :class="['grid gap-4 border-b border-default p-5 transition-colors duration-700 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6', highlightedEndpointId === endpoint.id ? 'bg-primary/10' : '']">
@@ -251,9 +263,11 @@ async function copy(value: string) {
                 <section class="min-w-0">
                   <p class="truncate font-mono text-xs font-medium text-default">{{ endpoint.url }}</p>
                   <p class="mt-1 text-xs text-muted">{{ endpoint.isActive ? 'Recebendo eventos' : 'Entrega pausada' }}</p>
+                  <p class="mt-1 text-xs text-muted">{{ ruleNameOf(endpoint.ruleId) ? `Regra: ${ruleNameOf(endpoint.ruleId)}` : 'Recebe todos os eventos' }}</p>
                 </section>
               </section>
               <section class="flex items-center justify-end gap-3">
+                <UButton icon="i-lucide-filter" :color="endpoint.ruleId ? 'primary' : 'neutral'" variant="ghost" size="sm" :aria-label="`Escolher regra de ${endpoint.url}`" @click="editRule(endpoint)" />
                 <USwitch :model-value="endpoint.isActive" :aria-label="`Alternar ${endpoint.url}`" @update:model-value="toggleEndpoint(endpoint)" />
                 <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="sm" :aria-label="`Remover ${endpoint.url}`" @click="endpointToRemove = endpoint" />
               </section>
@@ -265,9 +279,13 @@ async function copy(value: string) {
             <p class="mx-auto mt-1 max-w-sm text-sm text-muted">Adicione uma URL para começar a redistribuir os eventos recebidos.</p>
           </section>
         </section>
+
+        <RulesPanel :app-id="id" :rules="rules" :endpoints="app.endpoints" @changed="refresh" />
       </section>
 
     </section>
+
+    <EndpointDialog v-model:open="dialogOpen" :app-id="id" :endpoint="dialogEndpoint" :new-url="pendingUrl" :rules="rules" :endpoints="app.endpoints" @saved="onEndpointSaved" />
 
     <WebhookTestModal v-model:open="webhookTestOpen" :app-id="id" :app-name="app.name" />
 

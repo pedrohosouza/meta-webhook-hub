@@ -13,11 +13,33 @@ model App {
   verifyToken String        @unique
   appSecret   String
   endpoints   Endpoint[]
+  rules       RoutingRule[]
   deliveries  DeliveryLog[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   @@map("apps")
+}
+
+enum RuleMatchMode {
+  ALL
+  ANY
+}
+
+/// Condições sobre o payload. Todos os destinos ligados à regra recebem o que ela aceita.
+model RoutingRule {
+  id         String        @id @default(uuid())
+  appId      String
+  app        App           @relation(fields: [appId], references: [id], onDelete: Cascade)
+  name       String
+  matchMode  RuleMatchMode @default(ALL)
+  conditions Json          @default("[]")
+  endpoints  Endpoint[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([appId])
+  @@map("routing_rules")
 }
 
 model Endpoint {
@@ -26,26 +48,30 @@ model Endpoint {
   app        App           @relation(fields: [appId], references: [id], onDelete: Cascade)
   url        String
   isActive   Boolean       @default(true)
+  /// Sem regra, o destino recebe todos os eventos.
+  ruleId     String?
+  rule       RoutingRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   deliveries DeliveryLog[]
   createdAt  DateTime      @default(now())
 
   @@unique([appId, url])
   @@index([appId])
+  @@index([ruleId])
   @@map("endpoints")
 }
 
 model DeliveryLog {
   id              String   @id @default(uuid())
   appId           String
-  app              App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-  endpointId       String
-  endpoint         Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
-  eventPayload     Json
-  statusCode       Int?
-  responseBody     String?
-  executionTimeMs  Int
-  attemptCount     Int      @default(1)
-  createdAt        DateTime @default(now())
+  app             App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  endpointId      String
+  endpoint        Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  eventPayload    Json
+  statusCode      Int?
+  responseBody    String?
+  executionTimeMs Int
+  attemptCount    Int      @default(1)
+  createdAt       DateTime @default(now())
 
   @@index([appId, createdAt])
   @@index([endpointId])

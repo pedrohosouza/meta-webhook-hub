@@ -5,7 +5,8 @@ export default defineEventHandler(async (event) => {
     where: { id },
     select: {
       id: true, name: true, verifyToken: true, appSecret: true, createdAt: true, updatedAt: true,
-      endpoints: { orderBy: { createdAt: 'asc' } }
+      endpoints: { orderBy: { createdAt: 'asc' } },
+      rules: { orderBy: { createdAt: 'asc' }, select: { id: true, name: true, matchMode: true, conditions: true } }
     }
   })
   if (!app) throw createError({ statusCode: 404, statusMessage: 'App não encontrado' })
